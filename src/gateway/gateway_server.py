@@ -8,10 +8,12 @@ from fastapi.responses import StreamingResponse
 from gateway.orchestrator_client import OrchestratorClient
 from gateway.request_models import InferenceHTTPRequest
 from common.logging_utils import log_event
+from common.config import config
+
 
 app = FastAPI(title="SecureLLM Gateway MVP")
 
-orchestrator = OrchestratorClient("localhost:60051")
+orchestrator = OrchestratorClient(config.ORCHESTRATOR_ADDRESS)
 
 
 @app.post("/infer")
@@ -34,14 +36,17 @@ async def infer(request: InferenceHTTPRequest):
     # Queue for async streaming
     queue: asyncio.Queue[bytes] = asyncio.Queue()
 
-    # Worker-thread function: iterate blocking gRPC stream and push into queue
     def stream_worker():
         try:
-            for token_msg in response_stream:
+            for token_msg in response_stream:  # synchronous iterator
                 queue.put_nowait(token_msg.encrypted_token)
+        except Exception as e:
+            print("Gateway stream_worker error:", e)
         finally:
-            # Signal end of stream with sentinel value
             queue.put_nowait(None)
+
+
+
 
     # Launch worker in thread
     loop = asyncio.get_event_loop()
@@ -66,4 +71,5 @@ async def infer(request: InferenceHTTPRequest):
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run(app, host=config.GATEWAY_HOST, port=config.GATEWAY_PORT)
+
