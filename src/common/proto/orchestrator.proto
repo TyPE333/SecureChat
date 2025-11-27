@@ -1,0 +1,44 @@
+syntax = "proto3";
+
+package orchestrator;
+
+// The client-facing request forwarded by the Gateway.
+message InferenceRequest {
+  string tenant_id = 1;
+  string region = 2;
+  string mode = 3;                // "plain" or "rag"
+  string client_pubkey = 4;       // optional
+  string request_id = 5;
+
+  // The prompt is already ENCRYPTED by the Gateway (application-level AES encryption).
+  bytes encrypted_prompt = 6;
+}
+
+// A single encrypted token chunk streamed back to the Gateway.
+message EncryptedToken {
+  bytes encrypted_token = 1;
+}
+
+// RAG request for vector retrieval.
+message RAGRequest {
+  string prompt = 1;
+  string request_id = 2;
+}
+
+// RAG response containing enriched context (as plaintext).
+// The Orchestrator will encrypt it before sending to Workers.
+message RAGResponse {
+  string rag_context = 1;
+}
+
+// -----------------------------------------------------------------------------
+// Orchestrator Service API
+// -----------------------------------------------------------------------------
+service OrchestratorService {
+  
+  // Main inference API — produces a streaming response of encrypted tokens.
+  rpc DispatchInference(InferenceRequest) returns (stream EncryptedToken);
+
+  // Optional RAG subsystem (Orchestrator → Vector Service wrapper).
+  rpc PerformRAG(RAGRequest) returns (RAGResponse);
+}

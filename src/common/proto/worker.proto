@@ -1,0 +1,19 @@
+syntax = "proto3";
+
+package worker;
+
+// Payload delivered to the Worker for decryption & inference.
+message EncryptedPayload {
+  string request_id = 1;
+  bytes encrypted_blob = 2;   // Contains encrypted prompt + metadata
+}
+
+// Encrypted token emitted by the Worker during generation.
+message EncryptedToken {
+  bytes encrypted_token = 1;
+}
+
+service WorkerService {
+  // Worker performs inference and streams encrypted tokens.
+  rpc RunInference(EncryptedPayload) returns (stream EncryptedToken);
+}
