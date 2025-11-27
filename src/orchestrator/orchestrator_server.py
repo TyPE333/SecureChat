@@ -12,6 +12,7 @@ from orchestrator.worker_client import WorkerClient
 from common.config import config
 from common.logging_utils import log_event
 
+import struct
 
 class OrchestratorService(orchestrator_pb2_grpc.OrchestratorServiceServicer):
     def __init__(self):
@@ -28,11 +29,6 @@ class OrchestratorService(orchestrator_pb2_grpc.OrchestratorServiceServicer):
         )
 
     def DispatchInference(self, request, context):
-        """
-        MVP:
-        - request.encrypted_prompt is treated as plaintext bytes
-          (we will fix this when we build the Gateway)
-        """
         request_id, encrypted_blob = self.dispatcher.dispatch(request)
 
         worker_stream = self.worker_client.run_inference(
@@ -42,14 +38,19 @@ class OrchestratorService(orchestrator_pb2_grpc.OrchestratorServiceServicer):
 
         log_event("orchestrator_streaming_tokens", request_id=request_id)
 
-        # Stream tokens back to caller
+        # Stream with framing
         for token_msg in worker_stream:
+            token = token_msg.encrypted_token
+            length = len(token)
+
+            # 4-byte big-endian length prefix
+            frame = struct.pack(">I", length) + token
+
             yield orchestrator_pb2.EncryptedToken(
-                encrypted_token=token_msg.encrypted_token
+                encrypted_token=frame
             )
 
         log_event("orchestrator_request_completed", request_id=request_id)
-
 
 # ------------------------------------------------------
 # Orchestrator server

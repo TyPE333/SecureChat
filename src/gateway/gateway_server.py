@@ -1,27 +1,21 @@
 # src/gateway/gateway_server.py
 
 import uuid
+import asyncio
 from fastapi import FastAPI
 from fastapi.responses import StreamingResponse
 
 from gateway.orchestrator_client import OrchestratorClient
 from gateway.request_models import InferenceHTTPRequest
-
 from common.logging_utils import log_event
 
-# Create FastAPI app
-app = FastAPI(title="SecureChat Gateway MVP")
+app = FastAPI(title="SecureLLM Gateway MVP")
 
-# Orchestrator is running at port 60051
 orchestrator = OrchestratorClient("localhost:60051")
 
 
-# --------------------------------------------------------
-# /infer endpoint
-# --------------------------------------------------------
 @app.post("/infer")
 async def infer(request: InferenceHTTPRequest):
-
     request_id = str(uuid.uuid4())
 
     log_event(
@@ -31,19 +25,34 @@ async def infer(request: InferenceHTTPRequest):
         extra={"mode": request.mode}
     )
 
-    # Make async call to orchestrator (streaming gRPC)
+    # Blocking gRPC stream call → will be run in executor
     response_stream = await orchestrator.dispatch_inference(
         request_id=request_id,
         http_request=request
     )
 
-    async def stream_tokens():
-        """
-        Convert gRPC streaming into HTTP streaming.
-        The tokens are encrypted bytes; we simply forward them.
-        """
-        for token_msg in response_stream:
-            chunk = token_msg.encrypted_token + b"\n"
+    # Queue for async streaming
+    queue: asyncio.Queue[bytes] = asyncio.Queue()
+
+    # Worker-thread function: iterate blocking gRPC stream and push into queue
+    def stream_worker():
+        try:
+            for token_msg in response_stream:
+                queue.put_nowait(token_msg.encrypted_token)
+        finally:
+            # Signal end of stream with sentinel value
+            queue.put_nowait(None)
+
+    # Launch worker in thread
+    loop = asyncio.get_event_loop()
+    loop.run_in_executor(None, stream_worker)
+
+    # Async streaming generator that FastAPI will use
+    async def async_streamer():
+        while True:
+            chunk = await queue.get()
+            if chunk is None:
+                break
             yield chunk
 
         log_event(
@@ -52,12 +61,9 @@ async def infer(request: InferenceHTTPRequest):
             tenant_id=request.tenant_id
         )
 
-    return StreamingResponse(stream_tokens(), media_type="application/octet-stream")
+    return StreamingResponse(async_streamer(), media_type="application/octet-stream")
 
 
-# --------------------------------------------------------
-# Entry point for running via: python src/gateway/gateway_server.py
-# --------------------------------------------------------
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)
