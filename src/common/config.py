@@ -108,12 +108,13 @@ class Config:
     # -------------------------
     # Model / Inference
     # -------------------------
-    MODEL_NAME: str = "llm-int8"
+    # Using 1.5B variant because the 2B identifier does not exist on HF Hub
+    MODEL_NAME: str = "Qwen/Qwen2.5-1.5B-Instruct"
     MODEL_QUANTIZATION_MODE: str = "INT8"  # {FP16, INT8, INT4}
     MAX_PROMPT_TOKENS: int = 2048
     MAX_GENERATION_TOKENS: int = 512
     ENABLE_FLASH_ATTENTION: bool = True
-
+    
     # -------------------------
     # RAG
     # -------------------------
