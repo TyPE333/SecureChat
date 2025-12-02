@@ -83,8 +83,8 @@ class Config:
     WORKER_SECRET_KEY: bytes = b"0123456789ABCDEF0123456789ABCDEF"
     ENCRYPTION_ALGO: str = "AES-GCM"
     KEY_ROTATION_INTERVAL_MIN: int = 60
-    STRICT_NO_LOGGING_MODE: bool = False
-    ALLOW_HOST_LOGGING_OF_IDS: bool = True
+    STRICT_NO_LOGGING_MODE: bool = True
+    ALLOW_HOST_LOGGING_OF_IDS: bool = False
 
     # -------------------------
     # Worker Pool / Lifecycle
