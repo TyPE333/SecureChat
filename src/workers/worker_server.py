@@ -11,7 +11,7 @@ from common.logging_utils import log_event
 from common.schemas.worker_state import WorkerState
 from common.config import config
 
-from workers.model_loader import ModelLoader
+from workers.model_loader import GPUModelLoader
 from workers.inference_engine import InferenceEngine
 from workers.worker_state_manager import WorkerStateManager
 
@@ -24,7 +24,9 @@ class WorkerService(worker_pb2_grpc.WorkerServiceServicer):
         self.worker_key = config.WORKER_SECRET_KEY
 
         self.state_manager = WorkerStateManager(worker_id)
-        self.model_loader = ModelLoader(worker_id)
+        
+        # Load model + tokenizer using GPU loader
+        self.model_loader = GPUModelLoader(worker_id)
         self.engine = None
 
         self.initialize_worker()
@@ -36,7 +38,10 @@ class WorkerService(worker_pb2_grpc.WorkerServiceServicer):
         self.state_manager.set_state(WorkerState.MODEL_LOADING)
         self.model_loader.load()
 
-        self.engine = InferenceEngine()
+        self.engine = InferenceEngine(
+            tokenizer=self.model_loader.tokenizer,
+            model=self.model_loader.model,
+        )
 
         self.state_manager.set_state(WorkerState.READY)
 
@@ -63,7 +68,6 @@ class WorkerService(worker_pb2_grpc.WorkerServiceServicer):
             return
 
         prompt = plaintext.decode("utf-8")
-
         log_event(
             "inference_started",
             worker_id=self.worker_id,
@@ -72,8 +76,12 @@ class WorkerService(worker_pb2_grpc.WorkerServiceServicer):
 
         self.state_manager.set_state(WorkerState.STREAMING, request_id=request_id)
 
-        # Mock streaming inference
-        for token in self.engine.run(prompt):
+        # Streaming inference using Qwen2.5 Instruct
+        for token in self.engine.stream_generate(prompt):
+            print(token, end ="", flush=True)  # For debugging
+            if not token.strip():
+                continue # Skip empty tokens
+
             encrypted = encrypt_token(token, self.worker_key)
             yield EncryptedToken(encrypted_token=encrypted)
 
