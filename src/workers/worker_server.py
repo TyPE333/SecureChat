@@ -69,7 +69,7 @@ class WorkerService(worker_pb2_grpc.WorkerServiceServicer):
 
         prompt = plaintext.decode("utf-8")
         log_event(
-            "inference_started",
+            "inference_s tarted",
             worker_id=self.worker_id,
             request_id=request_id,
         )
@@ -78,7 +78,6 @@ class WorkerService(worker_pb2_grpc.WorkerServiceServicer):
 
         # Streaming inference using Qwen2.5 Instruct
         for token in self.engine.stream_generate(prompt):
-            print(token, end ="", flush=True)  # For debugging
             if not token.strip():
                 continue # Skip empty tokens
 
