@@ -101,8 +101,8 @@ class Config:
     HTTP_REQUEST_TIMEOUT_MS: int = 30_000
     ORCHESTRATOR_RPC_TIMEOUT_MS: int = 25_000
     MODEL_LOAD_TIMEOUT_MS: int = 10_000
-    INFERENCE_TIMEOUT_MS: int = 15_000
-    STREAM_IDLE_TIMEOUT_MS: int = 5_000
+    INFERENCE_TIMEOUT_MS: int = 120_000
+    STREAM_IDLE_TIMEOUT_MS: int = 60_000
     RAG_TIMEOUT_MS: int = 2_000
 
     # -------------------------
@@ -110,7 +110,7 @@ class Config:
     # -------------------------
     # Using 1.5B variant because the 2B identifier does not exist on HF Hub
     MODEL_NAME: str = "Qwen/Qwen2.5-1.5B-Instruct"
-    MODEL_QUANTIZATION_MODE: str = "INT8"  # {FP16, INT8, INT4}
+    MODEL_QUANTIZATION_MODE: str = "FP16"  # {FP16, INT8, INT4}
     MAX_PROMPT_TOKENS: int = 2048
     MAX_GENERATION_TOKENS: int = 512
     ENABLE_FLASH_ATTENTION: bool = True
