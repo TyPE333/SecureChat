@@ -24,6 +24,14 @@ class WorkerClient:
         Call the worker with an encrypted payload.
         Return a generator over encrypted tokens.
         """
+        log_event(
+            "worker_client_run_inference",
+            request_id=request_id,
+            extra={
+                "worker_address": self.address,
+                "blob_len": str(len(encrypted_blob)),
+            },
+        )
         payload = EncryptedPayload(
             request_id=request_id,
             encrypted_blob=encrypted_blob
