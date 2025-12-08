@@ -45,7 +45,7 @@ class GPUModelLoader:
         return tokenizer
 
     def _load_model(self):
-        attn_impl = "flash_attention_2" if self.use_flash_attn else "eager"
+        attn_impl = "flash_attention_2" if self.use_flash_attn else "sdpa"
 
         logging.info(
             f"[loader] Loading model {self.model_name} |"
